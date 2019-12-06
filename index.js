@@ -10,6 +10,8 @@ if(imagePath == '') {
 }
 let start = new Date().getTime();
 let image = sharp(imagePath);
+let filePrefix = new Date().toISOString().slice(0,10).replace(/-/g,'');
+let fileIdx = 1;
 // file
 function fromDir(startPath, filter) {
     if (!fs.existsSync(startPath)) {
@@ -30,6 +32,10 @@ function fromDir(startPath, filter) {
     };
 };
 
+function lpad(v){
+    let str = "00" + v;
+    return str.slice(-2);
+}
 image.metadata().then(function (metadata) {
     let imgHeight = metadata.height; // 이미지 높이
     let imgWidth = metadata.width; // 이미지 넓이
@@ -77,7 +83,7 @@ image.metadata().then(function (metadata) {
                             if (extractHeight > 40) { // 40 픽셀보다 커야 의미있는 이미지
                                 let option = { left: 0, top: topPosition, width: imgWidth, height: extractHeight };
                                 console.log(option);
-                                image.extract(option).clone().toFile(`./resource-output/${i}-split.jpg`);
+                                image.extract(option).clone().toFile(`./resource-output/${filePrefix}_${lpad(fileIdx++)}.jpg`);
                                 cb();
                                 topPosition = i;
                                 return;
@@ -93,7 +99,7 @@ image.metadata().then(function (metadata) {
                         let extractHeight = imgHeight - topPosition;
                         let option = { left: 0, top: topPosition, width: imgWidth, height: extractHeight };
                         console.log(option);
-                        image.extract(option).clone().toFile(`./resource-output/${i}-split.jpg`);
+                        image.extract(option).clone().toFile(`./resource-output/${filePrefix}_${lpad(fileIdx++)}.jpg`);
                     }
                     cb();
                 });
