@@ -1,8 +1,35 @@
-const sharp = require("sharp");
-const async = require("async");
-let imagePath = "./test.jpg";
+const fs = require('fs');
+const path = require('path');
+const sharp = require('sharp');
+const async = require('async');
+// let imagePath = "./resource/test.jpg";
+let imagePath = fromDir('./resource', '.jpg');
+if(imagePath == '') {
+    console.log('Not found image file');
+    return;
+}
 let start = new Date().getTime();
 let image = sharp(imagePath);
+// file
+function fromDir(startPath, filter) {
+    if (!fs.existsSync(startPath)) {
+        console.log(`no dir ${startPath}`);
+        return '';
+    }
+    var files = fs.readdirSync(startPath);
+    for(var i=0;i<files.length;i++) {
+        var filename=path.join(startPath, files[i]);
+        var stat = fs.lstatSync(filename);
+        if (stat.isDirectory()) {
+            fromDir(filename,filter); //recurse
+        }
+        else if (filename.indexOf(filter) >=0 ) {
+            console.log(`found : ${filename}`);
+            return filename;
+        };
+    };
+};
+
 image.metadata().then(function (metadata) {
     let imgHeight = metadata.height; // 이미지 높이
     let imgWidth = metadata.width; // 이미지 넓이
@@ -13,7 +40,7 @@ image.metadata().then(function (metadata) {
     let i = 0;
     let topPosition = 0;
     let lastTone = -1; // 초기값 -1 인 경우 무조건 설정되며 그 뒤로는 마지막 배경색을 저장한다
-    let rgbInterval = 15;
+    let rgbInterval = 25;
     async.whilst(
         function check(cb) { //반복실행 조건
             cb(null, i < imgHeight - blankHeight);
@@ -31,8 +58,9 @@ image.metadata().then(function (metadata) {
                     const r = Math.round(rc.mean), g = Math.round(gc.mean), b = Math.round(bc.mean);
 
                     let isBackground = false; // 현재 체크중인 이미지 영역이 배경인지 아닌지 여부
+                    console.log([rc, gc, bc])
 
-                    // min max 가 비슷하면(오차 rgb 5) 단순 배경이 blankHeight 높이로 연속된 것으로 인지
+                    // min max 가 비슷하면(오차 rgbInterval 5) 단순 배경이 blankHeight 높이로 연속된 것으로 인지
                     if ((rc.min + rgbInterval >= rc.max) &&
                         (gc.min + rgbInterval >= gc.max) &&
                         (bc.min + rgbInterval >= bc.max)) {
@@ -41,7 +69,7 @@ image.metadata().then(function (metadata) {
                     if(isBackground) {
                         if(lastTone == -1) {
                             lastTone = rc.max + gc.max + bc.max;
-                        } else if(lastTone == -1 && (lastTone - (rgbInterval*3) > (rc.max + gc.max + bc.max) || lastTone + (rgbInterval*3) < (rc.max + gc.max + bc.max))) {
+                        } else if(lastTone != -1 && (lastTone - (rgbInterval*3) > (rc.max + gc.max + bc.max) || lastTone + (rgbInterval*3) < (rc.max + gc.max + bc.max))) {
                             // 배경이 이전 배경과 달라진 지점 서치
                             console.log(`이전과 다른 배경이 찾아진 높이 : ${i}`);
                             lastTone = (rc.max + gc.max + bc.max);
@@ -49,7 +77,7 @@ image.metadata().then(function (metadata) {
                             if (extractHeight > 40) { // 40 픽셀보다 커야 의미있는 이미지
                                 let option = { left: 0, top: topPosition, width: imgWidth, height: extractHeight };
                                 console.log(option);
-                                image.extract(option).clone().toFile(i + "-split.jpg");
+                                image.extract(option).clone().toFile(`./resource-output/${i}-split.jpg`);
                                 cb();
                                 topPosition = i;
                                 return;
@@ -65,12 +93,12 @@ image.metadata().then(function (metadata) {
                         let extractHeight = imgHeight - topPosition;
                         let option = { left: 0, top: topPosition, width: imgWidth, height: extractHeight };
                         console.log(option);
-                        image.extract(option).clone().toFile(i + "-split.jpg");
+                        image.extract(option).clone().toFile(`./resource-output/${i}-split.jpg`);
                     }
                     cb();
                 });
             });
-            // }).clone().toFile(i + ".jpg"); // 디버깅용 이미지 저장
+            // }).clone().toFile(`./resource-debug/${i}-debug.jpg`); // 디버깅용 이미지 저장
         },
         function done(err) { //루프 종료시
             console.log("done");
